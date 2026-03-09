@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fretboard — Scale Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Playfair+Display:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #c8a96e;
+    --accent2: #e8c98a;
+    --root-color: #e85d4a;
+    --note-color: #c8a96e;
+    --text: #e8e4dc;
+    --text-muted: #6b6560;
+    --text-dim: #888;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+    background-image:
+      radial-gradient(ellipse at 20% 10%, rgba(200,169,110,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(232,93,74,0.03) 0%, transparent 60%);
+  }
+
+  /* ── HEADER ── */
+  header { text-align: center; margin-bottom: 2.5rem; }
+  header::before {
+    content: '';
+    display: block;
+    width: 1px; height: 36px;
+    background: linear-gradient(to bottom, transparent, var(--accent));
+    margin: 0 auto 1.25rem;
+  }
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 5vw, 3rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  h1 span { color: var(--accent); font-style: italic; }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-top: 0.6rem;
+  }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex: 1;
+    min-width: 130px;
+    max-width: 240px;
+  }
+  .control-group label {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+    padding: 0.55rem 2.2rem 0.55rem 0.8rem;
+    border-radius: 2px;
+    appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23c8a96e'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+  select:hover { border-color: var(--accent); }
+
+  /* ── MAIN LAYOUT ── */
+  .results { max-width: 1000px; margin: 0 auto; }
+
+  /* Side by side on wide screens */
+  .main-layout {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    gap: 1.25rem;
+    align-items: start;
+  }
+  @media (max-width: 700px) {
+    .main-layout { grid-template-columns: 1fr; }
+  }
+
+  .left-col { display: grid; gap: 1.1rem; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1rem 1.2rem;
+    position: relative;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+  .card-title {
+    font-size: 0.58rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.7rem;
+  }
+
+  /* ── SCALE INFO ── */
+  .scale-name-display {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem;
+    font-weight: 900;
+    margin-bottom: 0.75rem;
+  }
+  .scale-name-display em { color: var(--accent); font-style: italic; }
+
+  .info-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  @media (max-width: 380px) { .info-row { grid-template-columns: 1fr; } }
+
+  .pill-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 0.2rem 0.5rem;
+    font-size: 0.72rem;
+    border-radius: 2px;
+    color: var(--text-dim);
+  }
+  .pill.is-root {
+    background: rgba(232,93,74,0.15);
+    border-color: var(--root-color);
+    color: var(--root-color);
+    font-weight: 700;
+  }
+  .pill.is-note { color: var(--accent); }
+
+  /* ── CHORDS COMPACT ── */
+  .chords-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .chord-chip {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--accent2);
+    border-radius: 2px;
+    white-space: nowrap;
+    transition: border-color 0.15s;
+    cursor: default;
+  }
+  .chord-chip:hover { border-color: var(--accent); }
+  .chord-chip.is-root-chord {
+    color: var(--root-color);
+    border-color: rgba(232,93,74,0.4);
+    background: rgba(232,93,74,0.08);
+  }
+  .chord-sup { font-size: 0.62em; vertical-align: super; line-height: 0; }
+
+  /* ── FRETBOARD VERTICAL ── */
+  /*
+    Layout:
+    - Strings = columns (left = low E, right = high e)
+    - Frets   = rows   (top = nut/open, bottom = 12th)
+  */
+  .fretboard-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    position: relative;
+    width: 100%;
+  }
+  .fretboard-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  .fretboard-wrap {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  /* Left: fret number labels */
+  .fret-nums {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 20px;
+  }
+  .fret-num-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 4px;
+    font-size: 0.5rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  /* Right: strings grid */
+  .strings-grid {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    min-width: 0;
+    /* 6 equal columns */
+  }
+
+  .string-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    position: relative;
+  }
+
+  /* String name at top */
+  .string-name {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  /* Fret cell */
+  .fcell {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  /* Vertical string line */
+  .fcell::before {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: #333;
+    transform: translateX(-50%);
+    z-index: 0;
+  }
+
+  /* Horizontal fret bar at top of each cell */
+  .fcell::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 8%; right: 8%;
+    height: 1px;
+    background: #2e2e2e;
+    z-index: 0;
+  }
+
+  /* Nut: thick top bar */
+  .fcell.is-nut::after {
+    height: 3px;
+    background: #555;
+    top: 0;
+  }
+
+  /* Note dot */
+  .ndot {
+    position: relative;
+    z-index: 2;
+    /* Size scales with column width but capped */
+    width: min(28px, calc(100% - 4px));
+    height: min(28px, calc(100% - 4px));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(0.38rem, 1.4vw, 0.56rem);
+    font-weight: 700;
+    background: var(--note-color);
+    color: #0d0d0d;
+    box-shadow: 0 0 8px rgba(200,169,110,0.3);
+    transition: transform 0.15s;
+    text-align: center;
+    line-height: 1;
+  }
+  .ndot.is-root {
+    background: var(--root-color);
+    box-shadow: 0 0 12px rgba(232,93,74,0.5);
+    color: #fff;
+  }
+  .ndot:hover { transform: scale(1.12); }
+
+  /* Fret position marker dot */
+  .fret-marker {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #252525;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 0.9rem;
+    padding-top: 0.7rem;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.58rem;
+    color: var(--text-muted);
+  }
+  .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Fret<span>board</span></h1>
+  <p class="subtitle">Scale Explorer for Guitar</p>
+</header>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Tonalité</label>
+    <select id="rootSelect"></select>
+  </div>
+  <div class="control-group">
+    <label>Gamme</label>
+    <select id="scaleSelect"></select>
+  </div>
+</div>
+
+<div class="results">
+  <div class="main-layout">
+
+    <!-- LEFT: info + chords -->
+    <div class="left-col">
+
+      <div class="card">
+        <div class="card-title">Gamme sélectionnée</div>
+        <div class="scale-name-display" id="scaleName"></div>
+        <div class="info-row">
+          <div>
+            <div class="card-title">Formule</div>
+            <div class="pill-list" id="formulaDisplay"></div>
+          </div>
+          <div>
+            <div class="card-title">Notes</div>
+            <div class="pill-list" id="notesDisplay"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Triades</div>
+        <div class="chords-inline" id="triadsDisplay"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Tétrades</div>
+        <div class="chords-inline" id="tetradesDisplay"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: fretboard -->
+    <div class="fretboard-card">
+      <div class="card-title">Manche — 12 cases</div>
+      <div class="fretboard-wrap">
+        <div class="fret-nums" id="fretNums"></div>
+        <div class="strings-grid" id="stringsGrid"></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--root-color)"></div>
+          Fondamentale
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--note-color)"></div>
+          Note de la gamme
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+
+const CHROMATIC   = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const ENHARMONICS = { 'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb' };
+const ROOTS       = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+
+const SCALES = [
+  { id:'major',         name:'Majeure',                family:'Diatonique',   intervals:[2,2,1,2,2,2,1], formula:['1','2','3','4','5','6','7'] },
+  { id:'nat_minor',     name:'Mineure naturelle',       family:'Diatonique',   intervals:[2,1,2,2,1,2,2], formula:['1','2','b3','4','5','b6','b7'] },
+  { id:'harm_minor',    name:'Mineure harmonique',      family:'Diatonique',   intervals:[2,1,2,2,1,3,1], formula:['1','2','b3','4','5','b6','7'] },
+  { id:'mel_minor',     name:'Mineure mélodique',       family:'Diatonique',   intervals:[2,1,2,2,2,2,1], formula:['1','2','b3','4','5','6','7'] },
+  { id:'harm_major',    name:'Majeure harmonique',      family:'Diatonique',   intervals:[2,2,1,2,1,3,1], formula:['1','2','3','4','5','b6','7'] },
+  { id:'dorian',        name:'Dorien',                  family:'Mode',         intervals:[2,1,2,2,2,1,2], formula:['1','2','b3','4','5','6','b7'] },
+  { id:'phrygian',      name:'Phrygien',                family:'Mode',         intervals:[1,2,2,2,1,2,2], formula:['1','b2','b3','4','5','b6','b7'] },
+  { id:'lydian',        name:'Lydien',                  family:'Mode',         intervals:[2,2,2,1,2,2,1], formula:['1','2','3','#4','5','6','7'] },
+  { id:'mixolydian',    name:'Mixolydien',              family:'Mode',         intervals:[2,2,1,2,2,1,2], formula:['1','2','3','4','5','6','b7'] },
+  { id:'locrian',       name:'Locrien',                 family:'Mode',         intervals:[1,2,2,1,2,2,2], formula:['1','b2','b3','4','b5','b6','b7'] },
+  { id:'phryg_dom',     name:'Phrygien dominant',       family:'Mode',         intervals:[1,3,1,2,1,2,2], formula:['1','b2','3','4','5','b6','b7'] },
+  { id:'penta_maj',     name:'Pentatonique majeure',    family:'Pentatonique', intervals:[2,2,3,2,3],     formula:['1','2','3','5','6'] },
+  { id:'penta_min',     name:'Pentatonique mineure',    family:'Pentatonique', intervals:[3,2,2,3,2],     formula:['1','b3','4','5','b7'] },
+  { id:'blues',         name:'Blues',                   family:'Pentatonique', intervals:[3,2,1,1,3,2],   formula:['1','b3','4','b5','5','b7'] },
+  { id:'hijaz',         name:'Hijaz',                   family:'Exotique',     intervals:[1,3,1,2,1,2,2], formula:['1','b2','3','4','5','b6','b7'] },
+  { id:'double_harm',   name:'Double harmonique',       family:'Exotique',     intervals:[1,3,1,2,1,3,1], formula:['1','b2','3','4','5','b6','7'] },
+  { id:'hungarian_min', name:'Mineure hongroise',       family:'Exotique',     intervals:[2,1,3,1,1,3,1], formula:['1','2','b3','#4','5','b6','7'] },
+  { id:'whole_tone',    name:'Tons entiers',            family:'Exotique',     intervals:[2,2,2,2,2,2],   formula:['1','2','3','#4','#5','b7'] },
+  { id:'diminished',    name:'Diminuée (½T/T)',         family:'Exotique',     intervals:[1,2,1,2,1,2,1,2],formula:['1','b2','b3','3','#4','5','6','b7'] },
+  { id:'augmented',     name:'Augmentée',               family:'Exotique',     intervals:[3,1,3,1,3,1],   formula:['1','b3','3','5','#5','7'] },
+];
+
+// ── MUSIC ────────────────────────────────────────────────────────────────────
+
+function noteToIdx(n) {
+  let i = CHROMATIC.indexOf(n);
+  if (i === -1) { const e = Object.entries(ENHARMONICS).find(([k,v]) => v===n); if (e) i = CHROMATIC.indexOf(e[0]); }
+  return i < 0 ? 0 : i;
+}
+
+function buildScale(root, scale) {
+  const preferFlat = ['Eb','Ab','Bb','F'].includes(root);
+  const notes = [root];
+  let cur = noteToIdx(root);
+  for (let i = 0; i < scale.intervals.length - 1; i++) {
+    cur = (cur + scale.intervals[i]) % 12;
+    let name = CHROMATIC[cur];
+    if (preferFlat && ENHARMONICS[name]) name = ENHARMONICS[name];
+    notes.push(name);
+  }
+  return notes;
+}
+
+function triadQ(t, f) {
+  if (t===4&&f===7) return 'maj'; if (t===3&&f===7) return 'm';
+  if (t===3&&f===6) return 'dim'; if (t===4&&f===8) return 'aug';
+  if (t===5&&f===7) return 'sus4'; if (t===2&&f===7) return 'sus2';
+  return '?';
+}
+function tetradQ(t, f, s) {
+  if (t===4&&f===7&&s===11) return 'maj7'; if (t===4&&f===7&&s===10) return '7';
+  if (t===4&&f===7&&s===9)  return '6';    if (t===3&&f===7&&s===10) return 'm7';
+  if (t===3&&f===7&&s===11) return 'mMaj7';if (t===3&&f===7&&s===9)  return 'm6';
+  if (t===3&&f===6&&s===10) return 'ø7';   if (t===3&&f===6&&s===9)  return 'dim7';
+  if (t===4&&f===8&&s===11) return 'augMaj7'; if (t===4&&f===8&&s===10) return 'aug7';
+  return '?';
+}
+
+function buildTriads(notes) {
+  const n = notes.length;
+  return Array.from({length: Math.min(n,7)}, (_,i) => {
+    const r=notes[i], th=notes[(i+2)%n], fi=notes[(i+4)%n];
+    const ri=noteToIdx(r), t=(noteToIdx(th)-ri+12)%12, f=(noteToIdx(fi)-ri+12)%12;
+    return { degree:i, root:r, quality:triadQ(t,f) };
+  });
+}
+function buildTetrades(notes) {
+  const n = notes.length;
+  if (n < 4) return [];
+  return Array.from({length: Math.min(n,7)}, (_,i) => {
+    const r=notes[i], th=notes[(i+2)%n], fi=notes[(i+4)%n], se=notes[(i+6)%n];
+    const ri=noteToIdx(r);
+    const t=(noteToIdx(th)-ri+12)%12, f=(noteToIdx(fi)-ri+12)%12, s=(noteToIdx(se)-ri+12)%12;
+    return { degree:i, root:r, quality:tetradQ(t,f,s) };
+  });
+}
+
+// ── DISPLAY ──────────────────────────────────────────────────────────────────
+
+function dn(n) { return n.replace('#','♯').replace('b','♭'); }
+
+const QUAL_MAP = {
+  'maj':'', 'm':'<sup class="chord-sup">m</sup>', 'dim':'<sup class="chord-sup">dim</sup>',
+  'aug':'<sup class="chord-sup">aug</sup>', 'sus4':'<sup class="chord-sup">sus4</sup>',
+  'sus2':'<sup class="chord-sup">sus2</sup>', '7':'<sup class="chord-sup">7</sup>',
+  'maj7':'<sup class="chord-sup">maj7</sup>', '6':'<sup class="chord-sup">6</sup>',
+  'm7':'<sup class="chord-sup">m7</sup>', 'mMaj7':'<sup class="chord-sup">mMaj7</sup>',
+  'm6':'<sup class="chord-sup">m6</sup>', 'ø7':'<sup class="chord-sup">ø7</sup>',
+  'dim7':'<sup class="chord-sup">dim7</sup>', 'augMaj7':'<sup class="chord-sup">augMaj7</sup>',
+  'aug7':'<sup class="chord-sup">aug7</sup>', '?':'<sup class="chord-sup">?</sup>'
+};
+function chordHTML(root, q) { return `${dn(root)}${QUAL_MAP[q] || q}`; }
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+
+function render() {
+  const rootNote = document.getElementById('rootSelect').value;
+  const scaleId  = document.getElementById('scaleSelect').value;
+  const scale    = SCALES.find(s => s.id === scaleId);
+  const notes    = buildScale(rootNote, scale);
+
+  document.getElementById('scaleName').innerHTML = `<em>${dn(rootNote)}</em> ${scale.name}`;
+
+  const fEl = document.getElementById('formulaDisplay');
+  fEl.innerHTML = '';
+  scale.formula.forEach((f,i) => {
+    const p = document.createElement('div');
+    p.className = 'pill ' + (i===0 ? 'is-root' : 'is-note');
+    p.textContent = f; fEl.appendChild(p);
+  });
+
+  const nEl = document.getElementById('notesDisplay');
+  nEl.innerHTML = '';
+  notes.forEach((n,i) => {
+    const p = document.createElement('div');
+    p.className = 'pill ' + (i===0 ? 'is-root' : 'is-note');
+    p.textContent = dn(n); nEl.appendChild(p);
+  });
+
+  // Triads
+  const tEl = document.getElementById('triadsDisplay');
+  tEl.innerHTML = '';
+  buildTriads(notes).forEach(ch => {
+    const c = document.createElement('span');
+    c.className = 'chord-chip' + (ch.degree===0 ? ' is-root-chord' : '');
+    c.innerHTML = chordHTML(ch.root, ch.quality);
+    tEl.appendChild(c);
+  });
+
+  // Tetrades
+  const t4El = document.getElementById('tetradesDisplay');
+  t4El.innerHTML = '';
+  buildTetrades(notes).forEach(ch => {
+    const c = document.createElement('span');
+    c.className = 'chord-chip' + (ch.degree===0 ? ' is-root-chord' : '');
+    c.innerHTML = chordHTML(ch.root, ch.quality);
+    t4El.appendChild(c);
+  });
+
+  renderFretboard(notes, rootNote);
+}
+
+// ── FRETBOARD ─────────────────────────────────────────────────────────────────
+// Vertical: strings = columns (E A D G B e), frets = rows (0 top → 12 bottom)
+
+const OPEN  = [4, 9, 2, 7, 11, 4]; // E A D G B e
+const SNAMES = ['E','A','D','G','B','e'];
+// Single dot on frets 3,5,7,9 (shown between strings 3-4, i.e. col index 2)
+// Double dot on fret 12 (cols 1 and 3)
+const SINGLE_MARKER_FRETS = new Set([3,5,7,9]);
+
+// Heights per row (open = shorter, frets 1-12)
+const OPEN_H  = 32;
+const FRET_H  = 44;
+
+function renderFretboard(notes, rootNote) {
+  const numsEl  = document.getElementById('fretNums');
+  const gridEl  = document.getElementById('stringsGrid');
+  numsEl.innerHTML  = '';
+  gridEl.innerHTML  = '';
+
+  const noteSet = new Set(notes.map(n => noteToIdx(n)));
+  const rootIdx = noteToIdx(rootNote);
+
+  // Fret number labels column
+  // header spacer
+  const spacer = document.createElement('div');
+  spacer.className = 'fret-num-cell';
+  spacer.style.height = '22px';
+  numsEl.appendChild(spacer);
+  // open string row
+  const openLbl = document.createElement('div');
+  openLbl.className = 'fret-num-cell';
+  openLbl.style.height = OPEN_H + 'px';
+  numsEl.appendChild(openLbl);
+  // frets 1-12
+  for (let f = 1; f <= 12; f++) {
+    const lbl = document.createElement('div');
+    lbl.className = 'fret-num-cell';
+    lbl.style.height = FRET_H + 'px';
+    lbl.textContent = f;
+    numsEl.appendChild(lbl);
+  }
+
+  // String columns
+  SNAMES.forEach((sName, si) => {
+    const col = document.createElement('div');
+    col.className = 'string-col';
+
+    // String name header
+    const hdr = document.createElement('div');
+    hdr.className = 'string-name';
+    hdr.style.height = '22px';
+    hdr.textContent = sName;
+    col.appendChild(hdr);
+
+    // Open string (fret 0) + frets 1-12
+    for (let f = 0; f <= 12; f++) {
+      const pitch = (OPEN[si] + f) % 12;
+      const cell  = document.createElement('div');
+      cell.className = 'fcell' + (f === 0 ? ' is-nut' : '');
+      cell.style.height = (f === 0 ? OPEN_H : FRET_H) + 'px';
+
+      // Fret position marker dots
+      // Single dot: frets 3,5,7,9 on string column index 2 (between G and D visually)
+      if (SINGLE_MARKER_FRETS.has(f) && si === 2) {
+        const m = document.createElement('div'); m.className = 'fret-marker'; cell.appendChild(m);
+      }
+      // Double dot: fret 12 on cols 1 and 4
+      if (f === 12 && (si === 1 || si === 4)) {
+        const m = document.createElement('div'); m.className = 'fret-marker'; cell.appendChild(m);
+      }
+
+      // Note dot
+      if (noteSet.has(pitch)) {
+        const noteName = notes.find(n => noteToIdx(n) === pitch) || CHROMATIC[pitch];
+        const dot = document.createElement('div');
+        dot.className = 'ndot' + (pitch === rootIdx ? ' is-root' : '');
+        dot.textContent = dn(noteName);
+        cell.appendChild(dot);
+      }
+
+      col.appendChild(cell);
+    }
+
+    gridEl.appendChild(col);
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+
+(function init() {
+  const rootSel = document.getElementById('rootSelect');
+  ROOTS.forEach(r => {
+    const o = document.createElement('option');
+    o.value = r; o.textContent = dn(r); rootSel.appendChild(o);
+  });
+  rootSel.value = 'A';
+
+  const scaleSel = document.getElementById('scaleSelect');
+  let lastFam = '';
+  SCALES.forEach(s => {
+    if (s.family !== lastFam) {
+      const og = document.createElement('optgroup');
+      og.label = s.family; scaleSel.appendChild(og); lastFam = s.family;
+    }
+    const o = document.createElement('option');
+    o.value = s.id; o.textContent = s.name; scaleSel.appendChild(o);
+  });
+  scaleSel.value = 'major';
+
+  rootSel.addEventListener('change', render);
+  scaleSel.addEventListener('change', render);
+  render();
+})();
+</script>
+</body>
+</html>
